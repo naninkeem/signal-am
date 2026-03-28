@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="SIGNAL AM"/>
+<meta name="theme-color" content="#080a0f"/>
+<title>SIGNAL AM</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:#080a0f;color:#dde4f0;font-family:'JetBrains Mono',monospace;max-width:430px;margin:0 auto;overflow-x:hidden}
+::-webkit-scrollbar{width:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+@keyframes slideUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.slide-up{animation:slideUp 0.35s cubic-bezier(.22,.68,0,1.2) forwards}
+.pulse{animation:pulse 2s ease-in-out infinite}
+input,select{outline:none;-webkit-appearance:none}
+button:active{transform:scale(0.97)}
+:root{
+  --bg:#080a0f;--surface:#0f1117;--surfaceHigh:#161b25;
+  --border:#1c2235;--accent:#e8c84a;--green:#3ecf8e;
+  --red:#f96b6b;--blue:#5b8af5;--purple:#a78bfa;
+  --orange:#fb923c;--muted:#3d4a5c;--text:#dde4f0;--textDim:#7a8ba0;
+}
+.header{padding:18px 20px 14px;border-bottom:1px solid var(--border);background:#080a0ff0;backdrop-filter:blur(10px);position:sticky;top:0;z-index:10}
+.header-row{display:flex;justify-content:space-between;align-items:flex-start}
+.logo{font-size:9px;letter-spacing:.3em;color:var(--accent);font-weight:700;margin-bottom:3px}
+.title{font-size:20px;font-weight:800;font-family:'Syne',sans-serif;letter-spacing:-.02em}
+.time{font-size:12px;color:var(--text);font-family:'JetBrains Mono',monospace}
+.date-small{font-size:9px;color:var(--muted);margin-top:2px;text-align:right}
+.chips{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.chip{padding:3px 9px;background:var(--surfaceHigh);border:1px solid var(--border);border-radius:20px;font-size:9px;color:var(--textDim);letter-spacing:.08em}
+.content{padding:18px 16px 100px}
+.section-label{font-size:9px;letter-spacing:.28em;color:var(--muted);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-label::before{content:'';display:block;width:16px;height:1px;background:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;margin-bottom:10px}
+.divider{height:1px;background:var(--border);margin:10px 0}
+.pill{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.06em;font-family:'JetBrains Mono',monospace;white-space:nowrap}
+.metric-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+.metric-box{background:var(--bg);border-radius:8px;padding:8px 10px;border:1px solid var(--border)}
+.metric-label{font-size:8px;color:var(--muted);letter-spacing:.08em;margin-bottom:3px}
+.metric-val{font-size:12px;font-weight:700}
+.sent-bar{height:6px;border-radius:3px;background:var(--border);overflow:hidden;margin-bottom:14px}
+.sent-fill{height:100%;background:linear-gradient(90deg,var(--red),var(--accent),var(--green));border-radius:3px;transition:width 1.2s ease}
+.stock-top{display:flex;justify-content:space-between;align-items:flex-start}
+.ticker{font-size:16px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.stock-name{font-size:10px;color:var(--muted);margin-top:2px}
+.earning-badge{display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(232,200,74,.1);border-radius:8px;margin-bottom:10px}
+.key-point{font-size:11px;color:var(--textDim);line-height:1.6}
+.risk-box{font-size:10px;color:var(--red);margin-top:8px;padding:6px 10px;background:rgba(249,107,107,.1);border-radius:8px}
+.action-item{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;margin-bottom:8px}
+.action-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.action-text{font-size:12px;color:var(--text);line-height:1.5}
+.geo-event{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.geo-event:last-child{border-bottom:none}
+.geo-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.geo-title{font-size:11px;font-weight:600;color:var(--text);margin-bottom:3px}
+.geo-impact{font-size:10px;color:var(--textDim);line-height:1.5}
+.spinner{width:40px;height:40px;border:2px solid var(--border);border-top:2px solid var(--accent);border-radius:50%;animation:spin 0.7s linear infinite}
+.loading-box{display:flex;flex-direction:column;align-items:center;padding:60px 20px;gap:16px}
+.loading-text{color:var(--textDim);font-size:11px;letter-spacing:.12em;text-align:center;line-height:1.8}
+.btn-primary{width:100%;padding:14px;background:var(--accent);color:#080a0f;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Syne',sans-serif;letter-spacing:.04em}
+.btn-ghost{width:100%;padding:12px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace;letter-spacing:.08em;margin-top:4px}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#0f1117f0;backdrop-filter:blur(16px);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:10px 0 28px;z-index:100}
+.nav-item{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;min-width:48px;transition:opacity .2s}
+.nav-icon{font-size:18px;line-height:1}
+.nav-label{font-size:8px;letter-spacing:.1em;text-transform:uppercase}
+.nav-dot{width:3px;height:3px;border-radius:50%;background:var(--accent)}
+.settings-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;margin-bottom:10px}
+.settings-select{width:100%;background:var(--surfaceHigh);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:13px;font-family:'JetBrains Mono',monospace;color-scheme:dark}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.day-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.day-row:last-child{border-bottom:none}
+.day-bar-wrap{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.day-bar-fill{height:100%;border-radius:2px;transition:width .8s ease}
+.earn-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.error-box{padding:12px;background:rgba(249,107,107,.1);border:1px solid rgba(249,107,107,.3);border-radius:10px;font-size:11px;color:var(--red);line-height:1.6;margin-top:12px}
+.bg-grid{position:fixed;top:0;left:50%;transform:translateX(-50%);width:430px;height:100vh;pointer-events:none;z-index:0;background-image:linear-gradient(#1c223518 1px,transparent 1px),linear-gradient(90deg,#1c223518 1px,transparent 1px);background-size:40px 40px}
+.saju-ring-wrap{position:relative;width:180px;height:180px;margin:0 auto 24px}
+.saju-svg{animation:spin 20s linear infinite;position:absolute;top:0;left:0}
+.saju-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
+.info-row{display:flex;justify-content:space-between;margin-bottom:6px}
+
+/* API key setup screen */
+.setup-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;padding:30px 20px;text-align:center}
+.setup-icon{font-size:40px;margin-bottom:16px}
+.setup-title{font-size:18px;font-weight:800;font-family:'Syne',sans-serif;margin-bottom:8px;color:var(--accent)}
+.setup-desc{font-size:12px;color:var(--textDim);line-height:1.8;margin-bottom:24px}
+.api-input{width:100%;background:var(--surfaceHigh);border:1px solid var(--accent);border-radius:10px;padding:12px 14px;color:var(--text);font-size:12px;font-family:'JetBrains Mono',monospace;margin-bottom:12px;letter-spacing:.04em}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="header">
+  <div class="header-row">
+    <div>
+      <div class="logo">◆ SIGNAL AM</div>
+      <div class="title" id="tab-title">모닝 브리핑</div>
+    </div>
+    <div>
+      <div class="time" id="clock"></div>
+      <div class="date-small" id="dateline"></div>
+    </div>
+  </div>
+  <div class="chips" id="ticker-chips"></div>
+</div>
+<div class="content" id="content"></div>
+<div class="nav" id="nav"></div>
+
+<script>
+// ── API KEY (여기에 입력하거나 앱 실행 후 설정화면에서 입력)
+const HARDCODED_KEY = "";  // 여기에 직접 입력해도 됨: "sk-ant-..."
+
+// ── State
+const S = {
+  tab: 'briefing',
+  tickers: ['GOOGL','NVDA'],
+  apiKey: HARDCODED_KEY || localStorage.getItem('signal_am_key') || '',
+  briefingData: null,
+  briefingLoading: false,
+  briefingError: null,
+};
+
+const TABS = [
+  {id:'briefing',icon:'◈',label:'브리핑'},
+  {id:'earnings',icon:'◷',label:'어닝'},
+  {id:'watchlist',icon:'⊕',label:'관심'},
+  {id:'saju',icon:'命',label:'사주'},
+  {id:'settings',icon:'◎',label:'설정'},
+];
+
+const TAB_TITLES = {briefing:'모닝 브리핑',earnings:'어닝 캘린더',watchlist:'관심 종목',saju:'사주 타이밍',settings:'설정'};
+
+const BRIEFING_SYS = `You are a sharp Korean financial analyst. Use web search to get current real-time data.
+Return ONLY valid JSON no markdown no backticks:
+{"market":{"sentiment":"공포|탐욕|중립","sentimentScore":50,"vix":"18.2","dollar":"104.1","sp500Change":"+0.3%","nasdaqChange":"-0.1%","summary":"2문장 한국어 시장 요약"},"stocks":[{"ticker":"GOOGL","name":"알파벳","price":"178.50","change":"1.2%","changeDir":"up","signal":"관망","analystTarget":"210","upside":"17%","keyPoint":"한국어 핵심 포인트","risk":"한국어 리스크","earningDate":"2025-04-29","earningDaysLeft":30}],"watchlist":[{"ticker":"MSFT","name":"마이크로소프트","reason":"한국어 이유","theme":"AI","change":"0.8%","changeDir":"up"}],"geopolitical":{"riskLevel":"보통","events":[{"title":"한국어 제목","impact":"한국어 영향","direction":"negative"}]},"actionItems":[{"priority":"high","text":"한국어 액션"}],"portfolioSuggestion":"한국어 포트폴리오 조언"}`;
+
+const SAJU_SYS = `You are a saju master combining Korean Four Pillars with stock market timing. Return ONLY valid JSON no markdown:
+{"sajuSummary":"한국어 요약","currentEnergy":"상승기","energyScore":72,"weeklyOutlook":[{"day":"월","energy":"강","action":"매수","reason":"한국어"}],"monthTiming":"한국어","avoidDates":["날짜 이유"],"favorableDates":["날짜 이유"],"stockAlignment":[{"ticker":"GOOGL","alignment":"높음","reason":"한국어"}],"overallAdvice":"한국어 조언"}`;
+
+const EARNINGS_SYS = `Search web for upcoming earnings. Return ONLY valid JSON no markdown:
+{"earnings":[{"ticker":"GOOGL","name":"알파벳","date":"2025-04-29","daysLeft":30,"time":"장후","epsEstimate":"2.01","epsPrev":"1.89","revenueEstimate":"89.1B","analystSentiment":"매수","keyWatch":"한국어 관전포인트","historicalBeat":"75% 비트"}]}`;
+
+// ── API
+async function callClaude(system, user, useSearch=true) {
+  if (!S.apiKey) throw new Error('API 키를 먼저 입력해줘 (설정 탭)');
+  const body = {
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 2000,
+    system,
+    messages: [{role:'user',content:user}],
+  };
+  if (useSearch) body.tools = [{type:'web_search_20250305',name:'web_search'}];
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key': S.apiKey,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  const text = data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
+  return JSON.parse(text.replace(/```json|```/g,'').trim());
+}
+
+// ── Clock
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('dateline').textContent = now.toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'short'});
+}
+setInterval(updateClock,1000); updateClock();
+
+// ── Helpers
+function pill(text,color,bg,size=10){
+  return `<span class="pill" style="color:${color};background:${bg};font-size:${size}px">${text}</span>`;
+}
+function signalPill(s){
+  const m={매수:['#3ecf8e','rgba(62,207,142,.1)'],관망:['#e8c84a','rgba(232,200,74,.1)'],주의:['#fb923c','rgba(251,146,60,.1)'],매도:['#f96b6b','rgba(249,107,107,.1)']};
+  const [c,b]=m[s]||['#3d4a5c','#161b25']; return pill(s,c,b);
+}
+function dc(d){return d==='up'?'#3ecf8e':d==='down'?'#f96b6b':'#3d4a5c'}
+function rc(r){
+  const m={낮음:['#3ecf8e','rgba(62,207,142,.1)'],보통:['#e8c84a','rgba(232,200,74,.1)'],높음:['#fb923c','rgba(251,146,60,.1)'],매우높음:['#f96b6b','rgba(249,107,107,.1)']};
+  return m[r]||['#3d4a5c','#161b25'];
+}
+
+// ── Nav
+function renderNav() {
+  if (!S.apiKey) { document.getElementById('nav').innerHTML=''; return; }
+  document.getElementById('nav').innerHTML = TABS.map(t=>`
+    <div class="nav-item" style="opacity:${S.tab===t.id?1:0.35}" onclick="setTab('${t.id}')">
+      <div class="nav-icon" style="color:${S.tab===t.id?'#e8c84a':'#7a8ba0'};font-family:${t.id==='saju'?'serif':'inherit'}">${t.icon}</div>
+      <div class="nav-label" style="color:${S.tab===t.id?'#e8c84a':'#3d4a5c'}">${t.label}</div>
+      ${S.tab===t.id?'<div class="nav-dot"></div>':''}
+    </div>
+  `).join('');
+  document.getElementById('tab-title').textContent = TAB_TITLES[S.tab]||'';
+  document.getElementById('ticker-chips').innerHTML = S.tickers.map(t=>`<div class="chip">${t}</div>`).join('');
+}
+
+function setTab(id){S.tab=id;renderNav();renderContent();}
+
+// ── API Key Setup Screen
+function renderSetup(){
+  document.getElementById('ticker-chips').innerHTML='';
+  document.getElementById('tab-title').textContent='시작하기';
+  return `<div class="setup-screen slide-up">
+    <div class="setup-icon">🔑</div>
+    <div class="setup-title">API 키 입력</div>
+    <div class="setup-desc">Claude API 키를 입력하면<br/>바로 시작할 수 있어.<br/><br/>키는 이 기기에만 저장되고<br/>외부로 전송되지 않아.</div>
+    <input class="api-input" type="password" id="api-key-input" placeholder="sk-ant-api03-..." />
+    <button class="btn-primary" onclick="saveApiKey()">시작하기</button>
+    <div style="font-size:10px;color:#3d4a5c;margin-top:12px;line-height:1.6">
+      키 발급: console.anthropic.com<br/>→ API Keys → Create Key
+    </div>
+  </div>`;
+}
+
+function saveApiKey(){
+  const val = document.getElementById('api-key-input').value.trim();
+  if (!val.startsWith('sk-')) { alert('올바른 API 키를 입력해줘 (sk-ant-... 형식)'); return; }
+  S.apiKey = val;
+  localStorage.setItem('signal_am_key', val);
+  renderNav(); renderContent();
+}
+
+// ── Briefing
+function renderBriefing(){
+  if (S.briefingLoading) return `<div class="loading-box">
+    <div class="spinner"></div>
+    <div class="loading-text">웹 검색 중...<br/>최신 시장 데이터 수집 & 분석</div>
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;justify-content:center">
+      ${S.tickers.concat(['VIX','CNN F&G']).map((t,i)=>`<div class="chip" style="animation:pulse 1.5s ${i*0.3}s ease-in-out infinite">${t}</div>`).join('')}
+    </div>
+  </div>`;
+
+  if (!S.briefingData) return `<div class="slide-up">
+    <div class="card" style="background:linear-gradient(135deg,#0f1117,#161b25)">
+      <div style="font-size:22px;margin-bottom:8px">📡</div>
+      <div style="font-size:14px;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:6px">오늘의 브리핑 준비 완료</div>
+      <div style="font-size:12px;color:#7a8ba0;line-height:1.7;margin-bottom:16px">AI가 실시간 웹검색으로<br/><span style="color:#e8c84a">${S.tickers.join('·')}</span> 맞춤 분석을 만들어줄게.</div>
+      <button class="btn-primary" onclick="loadBriefing()">브리핑 생성하기</button>
+    </div>
+    ${S.briefingError?`<div class="error-box">${S.briefingError}</div>`:''}
+  </div>`;
+
+  const m=S.briefingData.market;
+  const sc=m.sentimentScore;
+  const sentColor=sc<30?'#f96b6b':sc<55?'#e8c84a':'#3ecf8e';
+
+  const stocksHtml=(S.briefingData.stocks||[]).map(s=>`
+    <div class="card" style="border-color:${dc(s.changeDir)}25">
+      <div class="stock-top">
+        <div><div class="ticker">${s.ticker}</div><div class="stock-name">${s.name}</div></div>
+        <div style="text-align:right">
+          <div style="font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace">$${s.price}</div>
+          <div style="font-size:11px;color:${dc(s.changeDir)};font-weight:600">${s.changeDir==='up'?'▲':s.changeDir==='down'?'▼':'—'} ${s.change}</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:10px;color:#3d4a5c">목표가 <span style="color:#dde4f0">$${s.analystTarget}</span>${s.upside?`<span style="color:#3ecf8e;margin-left:6px">+${s.upside}</span>`:''}</div>
+        ${signalPill(s.signal)}
+      </div>
+      ${s.earningDaysLeft!=null?`<div class="earning-badge"><div class="pulse" style="width:6px;height:6px;border-radius:50%;background:#e8c84a;flex-shrink:0"></div><div style="font-size:10px;color:#e8c84a">어닝 <span style="font-weight:700">D-${s.earningDaysLeft}</span>${s.earningDate?`<span style="color:#7a8ba0;margin-left:6px">(${s.earningDate})</span>`:''}</div></div>`:''}
+      <div class="key-point">${s.keyPoint}</div>
+      ${s.risk?`<div class="risk-box">⚠ ${s.risk}</div>`:''}
+    </div>`).join('');
+
+  const actionHtml=(S.briefingData.actionItems||[]).map(a=>{
+    const [c,b]=a.priority==='high'?['#f96b6b','rgba(249,107,107,.1)']:a.priority==='medium'?['#e8c84a','rgba(232,200,74,.1)']:['#3d4a5c','#161b25'];
+    return `<div class="action-item" style="background:${b};border:1px solid ${c}25"><div class="action-dot" style="background:${c}"></div><div class="action-text">${a.text}</div></div>`;
+  }).join('');
+
+  const geo=S.briefingData.geopolitical;
+  const [rcol,rbg]=rc(geo?.riskLevel);
+  const geoHtml=(geo?.events||[]).map(e=>{
+    const gcol=e.direction==='positive'?'#3ecf8e':e.direction==='negative'?'#f96b6b':'#3d4a5c';
+    return `<div class="geo-event"><div class="geo-dot" style="background:${gcol}"></div><div><div class="geo-title">${e.title}</div><div class="geo-impact">${e.impact}</div></div></div>`;
+  }).join('');
+
+  return `<div class="slide-up">
+    <div class="section-label">시장 온도</div>
+    <div class="card" style="background:#161b25;box-shadow:0 0 20px ${sentColor}15">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div>
+          <div style="font-size:10px;color:#3d4a5c;letter-spacing:.1em;margin-bottom:4px">공포 · 탐욕 지수</div>
+          <div style="font-size:32px;font-weight:800;color:${sentColor};font-family:'Syne',sans-serif;line-height:1">${sc}</div>
+        </div>
+        ${pill(m.sentiment,sentColor,sentColor+'18',11)}
+      </div>
+      <div class="sent-bar"><div class="sent-fill" style="width:${sc}%"></div></div>
+      <div class="metric-grid">
+        ${[['VIX',m.vix],['DXY',m.dollar],['S&P500',m.sp500Change],['NASDAQ',m.nasdaqChange]].map(([l,v])=>`<div class="metric-box"><div class="metric-label">${l}</div><div class="metric-val">${v}</div></div>`).join('')}
+      </div>
+      <div style="font-size:11px;color:#7a8ba0;margin-top:12px;line-height:1.7">${m.summary}</div>
+    </div>
+    <div class="section-label">보유 종목</div>${stocksHtml}
+    <div class="section-label">오늘의 액션</div>${actionHtml}
+    <div class="section-label">정세 리스크</div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <span style="font-size:11px;color:#7a8ba0">글로벌 리스크</span>${pill('리스크 '+(geo?.riskLevel||'—'),rcol,rbg)}
+      </div>${geoHtml}
+    </div>
+    <div class="section-label">포트폴리오 조언</div>
+    <div class="card" style="background:rgba(232,200,74,.04);border-color:rgba(232,200,74,.2)">
+      <div style="font-size:12px;color:#7a8ba0;line-height:1.8">${S.briefingData.portfolioSuggestion}</div>
+    </div>
+    <button class="btn-ghost" onclick="loadBriefing()">↻ 다시 분석</button>
+  </div>`;
+}
+
+async function loadBriefing(){
+  S.briefingLoading=true; S.briefingError=null; S.tab='briefing';
+  renderNav(); renderContent();
+  try {
+    S.briefingData = await callClaude(BRIEFING_SYS,`오늘 기준 ${S.tickers.join(', ')} 포트폴리오 모닝 브리핑 JSON만 반환해.`);
+  } catch(e){ S.briefingError=e.message; }
+  S.briefingLoading=false; renderContent();
+}
+
+// ── Earnings
+let earningsData=null,earningsLoading=false,earningsError=null;
+async function loadEarnings(){
+  earningsLoading=true; earningsError=null; renderContent();
+  try{ earningsData=await callClaude(EARNINGS_SYS,`Search upcoming earnings for: ${S.tickers.join(', ')}. JSON only.`); }
+  catch(e){ earningsError=e.message; }
+  earningsLoading=false; renderContent();
+}
+function renderEarnings(){
+  if(earningsLoading) return `<div class="loading-box"><div class="spinner"></div><div class="loading-text">어닝 날짜 조회 중...</div></div>`;
+  if(!earningsData){ setTimeout(loadEarnings,100); return `<div class="loading-box"><div class="spinner"></div><div class="loading-text">불러오는 중...</div></div>`; }
+  const scMap={강력매수:['#3ecf8e','rgba(62,207,142,.1)'],매수:['#5b8af5','rgba(91,138,245,.1)'],중립:['#e8c84a','rgba(232,200,74,.1)'],매도:['#f96b6b','rgba(249,107,107,.1)']};
+  const html=(earningsData.earnings||[]).map(e=>{
+    const [ac,ab]=scMap[e.analystSentiment]||['#3d4a5c','#161b25'];
+    const dColor=e.daysLeft<=3?'#f96b6b':e.daysLeft<=7?'#e8c84a':'#dde4f0';
+    const dSize=e.daysLeft<=3?28:e.daysLeft<=7?24:20;
+    const barColor=e.daysLeft<=3?'#f96b6b':e.daysLeft<=7?'#e8c84a':'#5b8af5';
+    const barW=Math.max(5,100-(e.daysLeft/90)*100);
+    return `<div class="card" ${e.daysLeft<=7?'style="border-color:rgba(232,200,74,.35);box-shadow:0 0 20px rgba(232,200,74,.15)"':''}>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+        <div><div class="ticker">${e.ticker}</div><div class="stock-name">${e.name}</div></div>
+        <div style="text-align:right"><div style="font-size:${dSize}px;font-weight:800;color:${dColor};font-family:'Syne',sans-serif;line-height:1">D-${e.daysLeft}</div><div style="font-size:10px;color:#3d4a5c;margin-top:3px">${e.date} ${e.time}</div></div>
+      </div>
+      <div style="height:3px;border-radius:2px;background:#1c2235;overflow:hidden;margin-bottom:12px"><div style="width:${barW}%;height:100%;background:${barColor};border-radius:2px"></div></div>
+      <div class="earn-grid">
+        ${[['EPS 예상',e.epsEstimate],['이전 EPS',e.epsPrev],['매출 예상',e.revenueEstimate],['비트율',e.historicalBeat]].map(([l,v])=>`<div class="metric-box"><div class="metric-label">${l}</div><div class="metric-val" style="font-size:12px">${v}</div></div>`).join('')}
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="font-size:10px;color:#3d4a5c">애널리스트</span>${pill(e.analystSentiment,ac,ab)}</div>
+      <div style="font-size:11px;color:#7a8ba0;line-height:1.6;padding:8px 10px;background:#161b25;border-radius:8px">👁 ${e.keyWatch}</div>
+    </div>`;
+  }).join('');
+  return `<div class="slide-up"><div class="section-label">어닝 카운트다운</div>${html}${earningsError?`<div class="error-box">${earningsError}</div>`:''}<button class="btn-ghost" onclick="earningsData=null;loadEarnings()">↻ 새로고침</button></div>`;
+}
+
+// ── Watchlist
+function renderWatchlist(){
+  if(!S.briefingData?.watchlist?.length) return `<div style="text-align:center;padding:60px 20px"><div style="font-size:32px;margin-bottom:12px">📭</div><div style="color:#7a8ba0;font-size:12px;line-height:1.7">브리핑을 먼저 생성하면<br/>관심 종목이 표시돼.</div><button class="btn-primary" style="margin-top:20px;max-width:200px" onclick="setTab('briefing')">브리핑 탭으로</button></div>`;
+  const tcMap={AI:['#5b8af5','rgba(91,138,245,.1)'],반도체:['#a78bfa','rgba(167,139,250,.1)'],클라우드:['#3ecf8e','rgba(62,207,142,.1)'],에너지:['#fb923c','rgba(251,146,60,.1)']};
+  const wHtml=S.briefingData.watchlist.map(w=>{
+    const [tc,tb]=tcMap[w.theme]||['#e8c84a','rgba(232,200,74,.1)'];
+    return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px"><div style="display:flex;gap:8px;align-items:center"><div style="font-size:14px;font-weight:700;font-family:'JetBrains Mono',monospace">${w.ticker}</div>${pill(w.theme,tc,tb,9)}</div>${w.change?`<div style="font-size:12px;color:${dc(w.changeDir)};font-weight:600">${w.changeDir==='up'?'▲':w.changeDir==='down'?'▼':'—'} ${w.change}</div>`:''}</div><div style="font-size:10px;color:#3d4a5c;margin-bottom:4px">${w.name}</div><div style="font-size:11px;color:#7a8ba0;line-height:1.6">${w.reason}</div></div>`;
+  }).join('');
+  return `<div class="slide-up"><div class="section-label">눈여겨볼 종목</div>${wHtml}${S.briefingData.portfolioSuggestion?`<div class="section-label">포트폴리오 제안</div><div class="card" style="background:rgba(232,200,74,.04);border-color:rgba(232,200,74,.2)"><div style="font-size:12px;color:#7a8ba0;line-height:1.8">${S.briefingData.portfolioSuggestion}</div></div>`:''}`;
+}
+
+// ── Saju
+let sajuData=null,sajuLoading=false,sajuError=null,sajuStep='input',sajuBirth='',sajuTime='';
+async function analyzeSaju(){
+  if(!sajuBirth)return;
+  sajuLoading=true;sajuError=null;renderContent();
+  try{
+    const today=new Date().toISOString().split('T')[0];
+    sajuData=await callClaude(SAJU_SYS,`생년월일:${sajuBirth}, 생시:${sajuTime||'미입력'}, 오늘:${today}, 종목:${S.tickers.join(',')}. JSON만 반환.`,false);
+    sajuStep='result';
+  }catch(e){sajuError=e.message;}
+  sajuLoading=false;renderContent();
+}
+function renderSaju(){
+  const ring=`<div class="saju-ring-wrap"><svg class="saju-svg" width="180" height="180" viewBox="0 0 180 180"><circle cx="90" cy="90" r="80" fill="none" stroke="#1c2235" stroke-width="1" stroke-dasharray="4 6"/><circle cx="90" cy="90" r="60" fill="none" stroke="rgba(232,200,74,.3)" stroke-width="1" stroke-dasharray="2 8"/></svg>${'甲乙丙丁戊己庚辛'.split('').map((c,i)=>{const a=(i/8)*Math.PI*2-Math.PI/2;const x=90+70*Math.cos(a);const y=90+70*Math.sin(a);return `<div style="position:absolute;left:${x}px;top:${y}px;transform:translate(-50%,-50%);font-size:11px;color:rgba(232,200,74,.5);font-family:serif">${c}</div>`;}).join('')}<div class="saju-center"><div style="font-size:28px;font-family:serif;color:#e8c84a">命</div><div style="font-size:8px;color:#3d4a5c;letter-spacing:.15em;margin-top:2px">사주분석</div></div></div>`;
+  if(sajuLoading) return `<div class="loading-box">${ring}<div class="spinner" style="border-top-color:#a78bfa"></div><div class="loading-text">사주 분석 중...<br/>천간지지 해석 & 투자 타이밍 계산</div></div>`;
+  if(sajuStep==='input'){
+    const timeOpts=['자시(23-01)','축시(01-03)','인시(03-05)','묘시(05-07)','진시(07-09)','사시(09-11)','오시(11-13)','미시(13-15)','신시(15-17)','유시(17-19)','술시(19-21)','해시(21-23)'];
+    return `<div class="slide-up">${ring}<div class="section-label">생년월일 입력</div><div class="card"><div style="font-size:12px;color:#7a8ba0;line-height:1.7;margin-bottom:16px">사주팔자와 현재 운세를 결합해 <span style="color:#a78bfa">최적의 매매 타이밍</span>을 분석해줄게.</div><div style="font-size:9px;color:#3d4a5c;letter-spacing:.15em;margin-bottom:6px">생년월일</div><input class="settings-input" type="date" value="${sajuBirth}" onchange="sajuBirth=this.value" style="margin-bottom:12px"/><div style="font-size:9px;color:#3d4a5c;letter-spacing:.15em;margin-bottom:6px">생시 (선택)</div><select class="settings-select" onchange="sajuTime=this.value" style="margin-bottom:16px"><option value="">모름</option>${timeOpts.map(t=>`<option value="${t}" ${sajuTime===t?'selected':''}>${t}</option>`).join('')}</select><button class="btn-primary" style="background:#a78bfa" onclick="analyzeSaju()">사주 투자 타이밍 분석</button></div>${sajuError?`<div class="error-box">${sajuError}</div>`:''}</div>`;
+  }
+  const d=sajuData;
+  const eC={상승기:['#3ecf8e','rgba(62,207,142,.1)'],안정기:['#5b8af5','rgba(91,138,245,.1)'],조심기:['#fb923c','rgba(251,146,60,.1)'],전환기:['#a78bfa','rgba(167,139,250,.1)']};
+  const [ec,eb]=eC[d.currentEnergy]||['#3d4a5c','#161b25'];
+  const dAC={매수:'#3ecf8e',관망:'#e8c84a',매도:'#f96b6b',조심:'#fb923c'};
+  const bW={강:'90%',중:'55%',약:'25%'};
+  const alC={높음:['#3ecf8e','rgba(62,207,142,.1)'],중간:['#e8c84a','rgba(232,200,74,.1)'],낮음:['#f96b6b','rgba(249,107,107,.1)']};
+  return `<div class="slide-up">
+    <div class="section-label">현재 운세 에너지</div>
+    <div class="card" style="border-color:${ec}30;box-shadow:0 0 20px ${ec}15">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div><div style="font-size:9px;color:#3d4a5c;margin-bottom:4px">현재 사이클</div><div style="font-size:22px;font-weight:800;font-family:'Syne',sans-serif;color:${ec}">${d.currentEnergy}</div></div>
+        <div style="text-align:right"><div style="font-size:32px;font-weight:800;font-family:'Syne',sans-serif;color:${ec}">${d.energyScore}</div><div style="font-size:9px;color:#3d4a5c">에너지 지수</div></div>
+      </div>
+      <div style="height:4px;border-radius:2px;background:#1c2235;overflow:hidden;margin-bottom:12px"><div style="width:${d.energyScore}%;height:100%;background:${ec};transition:width 1s ease"></div></div>
+      <div style="font-size:11px;color:#7a8ba0;line-height:1.7">${d.sajuSummary}</div>
+    </div>
+    <div class="section-label">이번 주 일별 에너지</div>
+    <div class="card">${(d.weeklyOutlook||[]).map((w,i)=>`<div class="day-row" ${i===d.weeklyOutlook.length-1?'style="border-bottom:none"':''}><div style="width:24px;font-size:11px;font-weight:700;flex-shrink:0">${w.day}</div><div class="day-bar-wrap"><div class="day-bar-fill" style="width:${bW[w.energy]||'50%'};background:${dAC[w.action]||'#3d4a5c'}"></div></div>${pill(w.action,dAC[w.action]||'#3d4a5c',(dAC[w.action]||'#3d4a5c')+'18',9)}<div style="font-size:9px;color:#7a8ba0;max-width:90px;line-height:1.4">${w.reason}</div></div>`).join('')}</div>
+    <div class="two-col">
+      <div class="card" style="margin:0"><div style="font-size:9px;color:#3ecf8e;letter-spacing:.1em;margin-bottom:8px">✦ 길일</div>${(d.favorableDates||[]).map(fd=>`<div style="font-size:10px;color:#7a8ba0;line-height:1.5;margin-bottom:4px">• ${fd}</div>`).join('')}</div>
+      <div class="card" style="margin:0"><div style="font-size:9px;color:#f96b6b;letter-spacing:.1em;margin-bottom:8px">✦ 흉일</div>${(d.avoidDates||[]).map(ad=>`<div style="font-size:10px;color:#7a8ba0;line-height:1.5;margin-bottom:4px">• ${ad}</div>`).join('')}</div>
+    </div>
+    <div class="section-label">종목 운세 궁합</div>
+    <div class="card">${(d.stockAlignment||[]).map((s,i)=>{const[ac2,ab2]=alC[s.alignment]||['#3d4a5c','#161b25'];return `<div style="display:flex;justify-content:space-between;align-items:flex-start;padding:9px 0;${i<d.stockAlignment.length-1?'border-bottom:1px solid #1c2235':''}"><div><div style="font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace">${s.ticker}</div><div style="font-size:10px;color:#7a8ba0;margin-top:3px;line-height:1.4">${s.reason}</div></div>${pill(s.alignment,ac2,ab2)}</div>`;}).join('')}</div>
+    <div class="section-label">종합 조언</div>
+    <div class="card" style="background:linear-gradient(135deg,rgba(167,139,250,.1),rgba(232,200,74,.1));border-color:rgba(167,139,250,.25)"><div style="font-size:12px;color:#7a8ba0;line-height:1.8">${d.overallAdvice}</div></div>
+    <button class="btn-ghost" onclick="sajuStep='input';sajuData=null;renderContent()">← 다시 입력</button>
+  </div>`;
+}
+
+// ── Settings
+let settingsInput=S.tickers.join(', '), apiKeyInput='';
+function renderSettings(){
+  return `<div class="slide-up">
+    <div class="section-label">API 키</div>
+    <div class="card">
+      <div style="font-size:10px;color:#3d4a5c;margin-bottom:8px">현재 키: ${S.apiKey?'••••••••'+S.apiKey.slice(-6):'미입력'}</div>
+      <input class="settings-input" type="password" placeholder="새 키 입력 (sk-ant-...)" oninput="apiKeyInput=this.value"/>
+      <button class="btn-primary" style="margin-bottom:0" onclick="updateApiKey()">키 업데이트</button>
+    </div>
+    <div class="section-label">관심 종목</div>
+    <div class="card">
+      <div style="font-size:10px;color:#3d4a5c;margin-bottom:8px">콤마로 구분</div>
+      <input class="settings-input" value="${settingsInput}" oninput="settingsInput=this.value" placeholder="GOOGL, NVDA, MSFT..."/>
+      <button class="btn-primary" onclick="applySettings()">적용 & 새로 생성</button>
+    </div>
+    <div class="section-label">앱 정보</div>
+    <div class="card">
+      <div class="info-row"><span style="font-size:11px;color:#3d4a5c">버전</span><span style="font-size:11px;font-family:'JetBrains Mono',monospace">SIGNAL AM v1.0</span></div>
+      <div class="info-row"><span style="font-size:11px;color:#3d4a5c">데이터</span><span style="font-size:11px">Claude AI + 웹검색</span></div>
+      <div class="info-row" style="margin:0"><span style="font-size:11px;color:#3d4a5c">면책</span><span style="font-size:11px;color:#f96b6b">투자 참고용</span></div>
+    </div>
+  </div>`;
+}
+function updateApiKey(){
+  if(!apiKeyInput.startsWith('sk-')){alert('올바른 키 형식이 아니야 (sk-ant-... 형식)');return;}
+  S.apiKey=apiKeyInput; localStorage.setItem('signal_am_key',apiKeyInput);
+  alert('키 업데이트 완료!'); renderContent();
+}
+function applySettings(){
+  S.tickers=settingsInput.split(/[,\s]+/).filter(Boolean);
+  S.briefingData=null; earningsData=null;
+  renderNav(); loadBriefing();
+}
+
+// ── Main render
+function renderContent(){
+  const el=document.getElementById('content');
+  if(!S.apiKey){ el.innerHTML=renderSetup(); return; }
+  const map={briefing:renderBriefing,earnings:renderEarnings,watchlist:renderWatchlist,saju:renderSaju,settings:renderSettings};
+  el.innerHTML=(map[S.tab]||renderBriefing)();
+}
+
+// ── Init
+renderNav(); renderContent();
+</script>
+</body>
+</html>
