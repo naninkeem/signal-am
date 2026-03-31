@@ -32,8 +32,12 @@ button:active{transform:scale(0.97)}
 .title{font-size:20px;font-weight:800;font-family:'Syne',sans-serif;letter-spacing:-.02em}
 .time{font-size:12px;color:var(--text);font-family:'JetBrains Mono',monospace}
 .date-small{font-size:9px;color:var(--muted);margin-top:2px;text-align:right}
-.chips{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.chips{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;align-items:center}
 .chip{padding:3px 9px;background:var(--surfaceHigh);border:1px solid var(--border);border-radius:20px;font-size:9px;color:var(--textDim);letter-spacing:.08em}
+/* 캐시 상태 배지 */
+.cache-badge{padding:2px 7px;border-radius:20px;font-size:8px;letter-spacing:.06em;border:1px solid;display:inline-flex;align-items:center;gap:3px}
+.cache-fresh{color:#3ecf8e;border-color:rgba(62,207,142,.3);background:rgba(62,207,142,.07)}
+.cache-old{color:#e8c84a;border-color:rgba(232,200,74,.3);background:rgba(232,200,74,.07)}
 .content{padding:18px 16px 100px}
 .section-label{font-size:9px;letter-spacing:.28em;color:var(--muted);text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
 .section-label::before{content:'';display:block;width:16px;height:1px;background:var(--muted)}
@@ -65,6 +69,7 @@ button:active{transform:scale(0.97)}
 .loading-text{color:var(--textDim);font-size:11px;letter-spacing:.12em;text-align:center;line-height:1.8}
 .btn-primary{width:100%;padding:14px;background:var(--accent);color:#080a0f;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Syne',sans-serif;letter-spacing:.04em}
 .btn-ghost{width:100%;padding:12px;background:transparent;border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace;letter-spacing:.08em;margin-top:4px}
+.btn-sm{padding:7px 14px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--textDim);font-size:10px;cursor:pointer;font-family:'JetBrains Mono',monospace;letter-spacing:.06em}
 .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#0f1117f0;backdrop-filter:blur(16px);border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:10px 0 28px;z-index:100}
 .nav-item{display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;min-width:48px;transition:opacity .2s}
 .nav-icon{font-size:18px;line-height:1}
@@ -85,12 +90,11 @@ button:active{transform:scale(0.97)}
 .saju-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
 .info-row{display:flex;justify-content:space-between;margin-bottom:6px}
 
-/* API key setup screen */
-.setup-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;padding:30px 20px;text-align:center}
-.setup-icon{font-size:40px;margin-bottom:16px}
-.setup-title{font-size:18px;font-weight:800;font-family:'Syne',sans-serif;margin-bottom:8px;color:var(--accent)}
-.setup-desc{font-size:12px;color:var(--textDim);line-height:1.8;margin-bottom:24px}
-.api-input{width:100%;background:var(--surfaceHigh);border:1px solid var(--accent);border-radius:10px;padding:12px 14px;color:var(--text);font-size:12px;font-family:'JetBrains Mono',monospace;margin-bottom:12px;letter-spacing:.04em}
+/* 토큰 사용량 표시 */
+.token-bar-wrap{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:10px}
+.token-bar-track{flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.token-bar-fill{height:100%;border-radius:2px;transition:width .6s ease}
+.token-label{font-size:9px;color:var(--muted);white-space:nowrap}
 </style>
 </head>
 <body>
@@ -112,17 +116,19 @@ button:active{transform:scale(0.97)}
 <div class="nav" id="nav"></div>
 
 <script>
-// ── API KEY (여기에 입력하거나 앱 실행 후 설정화면에서 입력)
-const HARDCODED_KEY = "";  // 여기에 직접 입력해도 됨: "sk-ant-..."
+// ── CONFIG
+const CACHE_TTL_MS = 3 * 60 * 60 * 1000; // 3시간 캐시 (브리핑/어닝)
+const SAJU_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 사주는 24시간
 
 // ── State
 const S = {
   tab: 'briefing',
   tickers: ['GOOGL','NVDA'],
-  apiKey: HARDCODED_KEY || localStorage.getItem('signal_am_key') || '',
   briefingData: null,
   briefingLoading: false,
   briefingError: null,
+  briefingCachedAt: null,
+  totalTokensUsed: parseInt(localStorage.getItem('signal_am_tokens')||'0'),
 };
 
 const TABS = [
@@ -132,41 +138,70 @@ const TABS = [
   {id:'saju',icon:'命',label:'사주'},
   {id:'settings',icon:'◎',label:'설정'},
 ];
-
 const TAB_TITLES = {briefing:'모닝 브리핑',earnings:'어닝 캘린더',watchlist:'관심 종목',saju:'사주 타이밍',settings:'설정'};
 
-const BRIEFING_SYS = `You are a sharp Korean financial analyst. Use web search to get current real-time data.
-Return ONLY valid JSON no markdown no backticks:
-{"market":{"sentiment":"공포|탐욕|중립","sentimentScore":50,"vix":"18.2","dollar":"104.1","sp500Change":"+0.3%","nasdaqChange":"-0.1%","summary":"2문장 한국어 시장 요약"},"stocks":[{"ticker":"GOOGL","name":"알파벳","price":"178.50","change":"1.2%","changeDir":"up","signal":"관망","analystTarget":"210","upside":"17%","keyPoint":"한국어 핵심 포인트","risk":"한국어 리스크","earningDate":"2025-04-29","earningDaysLeft":30}],"watchlist":[{"ticker":"MSFT","name":"마이크로소프트","reason":"한국어 이유","theme":"AI","change":"0.8%","changeDir":"up"}],"geopolitical":{"riskLevel":"보통","events":[{"title":"한국어 제목","impact":"한국어 영향","direction":"negative"}]},"actionItems":[{"priority":"high","text":"한국어 액션"}],"portfolioSuggestion":"한국어 포트폴리오 조언"}`;
+// ── 핵심 최적화: 간결한 프롬프트 (토큰 절감)
+const BRIEFING_SYS = `Korean financial analyst. Use web_search for real-time data.
+Return ONLY valid JSON (no markdown, no backticks):
+{"market":{"sentiment":"공포|탐욕|중립","sentimentScore":50,"vix":"18.2","dollar":"104.1","sp500Change":"+0.3%","nasdaqChange":"-0.1%","summary":"2문장 한국어"},"stocks":[{"ticker":"GOOGL","name":"알파벳","price":"178.50","change":"1.2%","changeDir":"up","signal":"관망","analystTarget":"210","upside":"17%","keyPoint":"한국어","risk":"한국어","earningDate":"2025-04-29","earningDaysLeft":30}],"watchlist":[{"ticker":"MSFT","name":"마이크로소프트","reason":"한국어","theme":"AI","change":"0.8%","changeDir":"up"}],"geopolitical":{"riskLevel":"보통","events":[{"title":"한국어","impact":"한국어","direction":"negative"}]},"actionItems":[{"priority":"high","text":"한국어"}],"portfolioSuggestion":"한국어"}`;
 
-const SAJU_SYS = `You are a saju master combining Korean Four Pillars with stock market timing. Return ONLY valid JSON no markdown:
-{"sajuSummary":"한국어 요약","currentEnergy":"상승기","energyScore":72,"weeklyOutlook":[{"day":"월","energy":"강","action":"매수","reason":"한국어"}],"monthTiming":"한국어","avoidDates":["날짜 이유"],"favorableDates":["날짜 이유"],"stockAlignment":[{"ticker":"GOOGL","alignment":"높음","reason":"한국어"}],"overallAdvice":"한국어 조언"}`;
+const SAJU_SYS = `Korean saju master + stock timing. Return ONLY valid JSON (no markdown):
+{"sajuSummary":"한국어","currentEnergy":"상승기","energyScore":72,"weeklyOutlook":[{"day":"월","energy":"강","action":"매수","reason":"한국어"}],"monthTiming":"한국어","avoidDates":["한국어"],"favorableDates":["한국어"],"stockAlignment":[{"ticker":"GOOGL","alignment":"높음","reason":"한국어"}],"overallAdvice":"한국어"}`;
 
-const EARNINGS_SYS = `Search web for upcoming earnings. Return ONLY valid JSON no markdown:
-{"earnings":[{"ticker":"GOOGL","name":"알파벳","date":"2025-04-29","daysLeft":30,"time":"장후","epsEstimate":"2.01","epsPrev":"1.89","revenueEstimate":"89.1B","analystSentiment":"매수","keyWatch":"한국어 관전포인트","historicalBeat":"75% 비트"}]}`;
+const EARNINGS_SYS = `Search web for upcoming earnings. Return ONLY valid JSON (no markdown):
+{"earnings":[{"ticker":"GOOGL","name":"알파벳","date":"2025-04-29","daysLeft":30,"time":"장후","epsEstimate":"2.01","epsPrev":"1.89","revenueEstimate":"89.1B","analystSentiment":"매수","keyWatch":"한국어","historicalBeat":"75% 비트"}]}`;
 
-// ── API
+// ── Cache 유틸
+function getCacheKey(type) {
+  return `signal_am_cache_${type}_${S.tickers.sort().join('_')}`;
+}
+function saveCache(type, data) {
+  const payload = { data, savedAt: Date.now() };
+  try { localStorage.setItem(getCacheKey(type), JSON.stringify(payload)); } catch(e){}
+}
+function loadCache(type, ttl = CACHE_TTL_MS) {
+  try {
+    const raw = localStorage.getItem(getCacheKey(type));
+    if (!raw) return null;
+    const { data, savedAt } = JSON.parse(raw);
+    if (Date.now() - savedAt > ttl) return null;
+    return { data, savedAt };
+  } catch(e) { return null; }
+}
+function clearCache(type) {
+  try { localStorage.removeItem(getCacheKey(type)); } catch(e){}
+}
+function formatAge(ms) {
+  const m = Math.floor(ms / 60000);
+  if (m < 1) return '방금';
+  if (m < 60) return `${m}분 전`;
+  return `${Math.floor(m/60)}시간 전`;
+}
+
+// ── API (Vercel 프록시 경유 → 키 브라우저 노출 없음)
 async function callClaude(system, user, useSearch=true) {
-  if (!S.apiKey) throw new Error('API 키를 먼저 입력해줘 (설정 탭)');
   const body = {
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 2000,
+    max_tokens: 1200,
     system,
     messages: [{role:'user',content:user}],
   };
   if (useSearch) body.tools = [{type:'web_search_20250305',name:'web_search'}];
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const res = await fetch('/api/proxy', {
     method:'POST',
-    headers:{
-      'Content-Type':'application/json',
-      'x-api-key': S.apiKey,
-      'anthropic-version':'2023-06-01',
-      'anthropic-dangerous-direct-browser-access':'true'
-    },
+    headers:{'Content-Type':'application/json'},
     body: JSON.stringify(body),
   });
   const data = await res.json();
   if (data.error) throw new Error(data.error.message);
+
+  // 토큰 사용량 추적
+  if (data.usage) {
+    const used = (data.usage.input_tokens||0) + (data.usage.output_tokens||0);
+    S.totalTokensUsed += used;
+    localStorage.setItem('signal_am_tokens', S.totalTokensUsed);
+  }
+
   const text = data.content.filter(b=>b.type==='text').map(b=>b.text).join('');
   return JSON.parse(text.replace(/```json|```/g,'').trim());
 }
@@ -192,10 +227,14 @@ function rc(r){
   const m={낮음:['#3ecf8e','rgba(62,207,142,.1)'],보통:['#e8c84a','rgba(232,200,74,.1)'],높음:['#fb923c','rgba(251,146,60,.1)'],매우높음:['#f96b6b','rgba(249,107,107,.1)']};
   return m[r]||['#3d4a5c','#161b25'];
 }
+function tokenColor(n) {
+  if (n < 50000) return '#3ecf8e';
+  if (n < 150000) return '#e8c84a';
+  return '#f96b6b';
+}
 
 // ── Nav
 function renderNav() {
-  if (!S.apiKey) { document.getElementById('nav').innerHTML=''; return; }
   document.getElementById('nav').innerHTML = TABS.map(t=>`
     <div class="nav-item" style="opacity:${S.tab===t.id?1:0.35}" onclick="setTab('${t.id}')">
       <div class="nav-icon" style="color:${S.tab===t.id?'#e8c84a':'#7a8ba0'};font-family:${t.id==='saju'?'serif':'inherit'}">${t.icon}</div>
@@ -204,36 +243,23 @@ function renderNav() {
     </div>
   `).join('');
   document.getElementById('tab-title').textContent = TAB_TITLES[S.tab]||'';
-  document.getElementById('ticker-chips').innerHTML = S.tickers.map(t=>`<div class="chip">${t}</div>`).join('');
+
+  // 캐시 상태 배지
+  const cached = loadCache('briefing');
+  const age = cached ? Date.now() - cached.savedAt : null;
+  const badgeHtml = cached
+    ? `<span class="cache-badge ${age < 60*60*1000 ? 'cache-fresh' : 'cache-old'}">◉ ${formatAge(age)}</span>`
+    : '';
+  document.getElementById('ticker-chips').innerHTML =
+    S.tickers.map(t=>`<div class="chip">${t}</div>`).join('') + badgeHtml;
 }
 
 function setTab(id){S.tab=id;renderNav();renderContent();}
 
-// ── API Key Setup Screen
-function renderSetup(){
-  document.getElementById('ticker-chips').innerHTML='';
-  document.getElementById('tab-title').textContent='시작하기';
-  return `<div class="setup-screen slide-up">
-    <div class="setup-icon">🔑</div>
-    <div class="setup-title">API 키 입력</div>
-    <div class="setup-desc">Claude API 키를 입력하면<br/>바로 시작할 수 있어.<br/><br/>키는 이 기기에만 저장되고<br/>외부로 전송되지 않아.</div>
-    <input class="api-input" type="password" id="api-key-input" placeholder="sk-ant-api03-..." />
-    <button class="btn-primary" onclick="saveApiKey()">시작하기</button>
-    <div style="font-size:10px;color:#3d4a5c;margin-top:12px;line-height:1.6">
-      키 발급: console.anthropic.com<br/>→ API Keys → Create Key
-    </div>
-  </div>`;
-}
 
-function saveApiKey(){
-  const val = document.getElementById('api-key-input').value.trim();
-  if (!val.startsWith('sk-')) { alert('올바른 API 키를 입력해줘 (sk-ant-... 형식)'); return; }
-  S.apiKey = val;
-  localStorage.setItem('signal_am_key', val);
-  renderNav(); renderContent();
-}
 
-// ── Briefing
+
+// ── Briefing (캐시 우선)
 function renderBriefing(){
   if (S.briefingLoading) return `<div class="loading-box">
     <div class="spinner"></div>
@@ -243,19 +269,29 @@ function renderBriefing(){
     </div>
   </div>`;
 
-  if (!S.briefingData) return `<div class="slide-up">
-    <div class="card" style="background:linear-gradient(135deg,#0f1117,#161b25)">
-      <div style="font-size:22px;margin-bottom:8px">📡</div>
-      <div style="font-size:14px;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:6px">오늘의 브리핑 준비 완료</div>
-      <div style="font-size:12px;color:#7a8ba0;line-height:1.7;margin-bottom:16px">AI가 실시간 웹검색으로<br/><span style="color:#e8c84a">${S.tickers.join('·')}</span> 맞춤 분석을 만들어줄게.</div>
-      <button class="btn-primary" onclick="loadBriefing()">브리핑 생성하기</button>
-    </div>
-    ${S.briefingError?`<div class="error-box">${S.briefingError}</div>`:''}
-  </div>`;
+  if (!S.briefingData) {
+    const cached = loadCache('briefing');
+    if (cached) {
+      // 캐시 있으면 바로 사용
+      S.briefingData = cached.data;
+      S.briefingCachedAt = cached.savedAt;
+    } else {
+      return `<div class="slide-up">
+        <div class="card" style="background:linear-gradient(135deg,#0f1117,#161b25)">
+          <div style="font-size:22px;margin-bottom:8px">📡</div>
+          <div style="font-size:14px;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:6px">오늘의 브리핑 준비 완료</div>
+          <div style="font-size:12px;color:#7a8ba0;line-height:1.7;margin-bottom:16px">AI가 실시간 웹검색으로<br/><span style="color:#e8c84a">${S.tickers.join('·')}</span> 맞춤 분석을 만들어줄게.</div>
+          <button class="btn-primary" onclick="loadBriefing()">브리핑 생성하기</button>
+        </div>
+        ${S.briefingError?`<div class="error-box">${S.briefingError}</div>`:''}
+      </div>`;
+    }
+  }
 
   const m=S.briefingData.market;
   const sc=m.sentimentScore;
   const sentColor=sc<30?'#f96b6b':sc<55?'#e8c84a':'#3ecf8e';
+  const cacheAge = S.briefingCachedAt ? Date.now() - S.briefingCachedAt : null;
 
   const stocksHtml=(S.briefingData.stocks||[]).map(s=>`
     <div class="card" style="border-color:${dc(s.changeDir)}25">
@@ -289,6 +325,10 @@ function renderBriefing(){
   }).join('');
 
   return `<div class="slide-up">
+    ${cacheAge ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <span class="cache-badge ${cacheAge < 60*60*1000 ? 'cache-fresh' : 'cache-old'}">◉ ${formatAge(cacheAge)} 데이터</span>
+      <button class="btn-sm" onclick="loadBriefing(true)">↻ 새로 분석</button>
+    </div>` : ''}
     <div class="section-label">시장 온도</div>
     <div class="card" style="background:#161b25;box-shadow:0 0 20px ${sentColor}15">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
@@ -316,30 +356,62 @@ function renderBriefing(){
     <div class="card" style="background:rgba(232,200,74,.04);border-color:rgba(232,200,74,.2)">
       <div style="font-size:12px;color:#7a8ba0;line-height:1.8">${S.briefingData.portfolioSuggestion}</div>
     </div>
-    <button class="btn-ghost" onclick="loadBriefing()">↻ 다시 분석</button>
   </div>`;
 }
 
-async function loadBriefing(){
+async function loadBriefing(force=false){
+  // 캐시 유효하면 스킵 (force=false일 때)
+  if (!force) {
+    const cached = loadCache('briefing');
+    if (cached) {
+      S.briefingData = cached.data;
+      S.briefingCachedAt = cached.savedAt;
+      renderContent(); return;
+    }
+  }
   S.briefingLoading=true; S.briefingError=null; S.tab='briefing';
   renderNav(); renderContent();
   try {
-    S.briefingData = await callClaude(BRIEFING_SYS,`오늘 기준 ${S.tickers.join(', ')} 포트폴리오 모닝 브리핑 JSON만 반환해.`);
+    const today = new Date().toISOString().split('T')[0];
+    S.briefingData = await callClaude(
+      BRIEFING_SYS,
+      `Date:${today}. Tickers:${S.tickers.join(',')}. Return JSON only.`
+    );
+    S.briefingCachedAt = Date.now();
+    saveCache('briefing', S.briefingData);
   } catch(e){ S.briefingError=e.message; }
   S.briefingLoading=false; renderContent();
 }
 
-// ── Earnings
-let earningsData=null,earningsLoading=false,earningsError=null;
-async function loadEarnings(){
+// ── Earnings (캐시 우선, 자동호출 제거)
+let earningsData=null,earningsLoading=false,earningsError=null,earningsCachedAt=null;
+async function loadEarnings(force=false){
+  if (!force) {
+    const cached = loadCache('earnings');
+    if (cached) { earningsData=cached.data; earningsCachedAt=cached.savedAt; renderContent(); return; }
+  }
   earningsLoading=true; earningsError=null; renderContent();
-  try{ earningsData=await callClaude(EARNINGS_SYS,`Search upcoming earnings for: ${S.tickers.join(', ')}. JSON only.`); }
-  catch(e){ earningsError=e.message; }
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    earningsData=await callClaude(EARNINGS_SYS,`Date:${today}. Tickers:${S.tickers.join(',')}. JSON only.`);
+    earningsCachedAt=Date.now();
+    saveCache('earnings', earningsData);
+  } catch(e){ earningsError=e.message; }
   earningsLoading=false; renderContent();
 }
 function renderEarnings(){
   if(earningsLoading) return `<div class="loading-box"><div class="spinner"></div><div class="loading-text">어닝 날짜 조회 중...</div></div>`;
-  if(!earningsData){ setTimeout(loadEarnings,100); return `<div class="loading-box"><div class="spinner"></div><div class="loading-text">불러오는 중...</div></div>`; }
+  if(!earningsData){
+    return `<div class="slide-up">
+      <div class="card" style="background:linear-gradient(135deg,#0f1117,#161b25);text-align:center;padding:30px 20px">
+        <div style="font-size:22px;margin-bottom:8px">◷</div>
+        <div style="font-size:14px;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:6px">어닝 캘린더</div>
+        <div style="font-size:12px;color:#7a8ba0;line-height:1.7;margin-bottom:16px">보유 종목의 어닝 일정과<br/>예상치를 검색해줄게.</div>
+        <button class="btn-primary" onclick="loadEarnings()">어닝 조회하기</button>
+      </div>
+      ${earningsError?`<div class="error-box">${earningsError}</div>`:''}
+    </div>`;
+  }
   const scMap={강력매수:['#3ecf8e','rgba(62,207,142,.1)'],매수:['#5b8af5','rgba(91,138,245,.1)'],중립:['#e8c84a','rgba(232,200,74,.1)'],매도:['#f96b6b','rgba(249,107,107,.1)']};
   const html=(earningsData.earnings||[]).map(e=>{
     const [ac,ab]=scMap[e.analystSentiment]||['#3d4a5c','#161b25'];
@@ -360,7 +432,15 @@ function renderEarnings(){
       <div style="font-size:11px;color:#7a8ba0;line-height:1.6;padding:8px 10px;background:#161b25;border-radius:8px">👁 ${e.keyWatch}</div>
     </div>`;
   }).join('');
-  return `<div class="slide-up"><div class="section-label">어닝 카운트다운</div>${html}${earningsError?`<div class="error-box">${earningsError}</div>`:''}<button class="btn-ghost" onclick="earningsData=null;loadEarnings()">↻ 새로고침</button></div>`;
+  const cacheAge2 = earningsCachedAt ? Date.now() - earningsCachedAt : null;
+  return `<div class="slide-up">
+    ${cacheAge2?`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <span class="cache-badge ${cacheAge2 < 60*60*1000 ? 'cache-fresh':'cache-old'}">◉ ${formatAge(cacheAge2)} 데이터</span>
+      <button class="btn-sm" onclick="loadEarnings(true)">↻ 새로고침</button>
+    </div>`:''}
+    <div class="section-label">어닝 카운트다운</div>${html}
+    ${earningsError?`<div class="error-box">${earningsError}</div>`:''}
+  </div>`;
 }
 
 // ── Watchlist
@@ -374,15 +454,27 @@ function renderWatchlist(){
   return `<div class="slide-up"><div class="section-label">눈여겨볼 종목</div>${wHtml}${S.briefingData.portfolioSuggestion?`<div class="section-label">포트폴리오 제안</div><div class="card" style="background:rgba(232,200,74,.04);border-color:rgba(232,200,74,.2)"><div style="font-size:12px;color:#7a8ba0;line-height:1.8">${S.briefingData.portfolioSuggestion}</div></div>`:''}`;
 }
 
-// ── Saju
+// ── Saju (캐시 적용)
 let sajuData=null,sajuLoading=false,sajuError=null,sajuStep='input',sajuBirth='',sajuTime='';
 async function analyzeSaju(){
   if(!sajuBirth)return;
+  // 사주는 같은 생년월일이면 캐시 재사용
+  const sajuKey = `signal_am_saju_${sajuBirth}_${sajuTime}_${S.tickers.sort().join('_')}`;
+  try {
+    const raw = localStorage.getItem(sajuKey);
+    if (raw) {
+      const { data, savedAt } = JSON.parse(raw);
+      if (Date.now() - savedAt < SAJU_CACHE_TTL_MS) {
+        sajuData=data; sajuStep='result'; renderContent(); return;
+      }
+    }
+  } catch(e){}
   sajuLoading=true;sajuError=null;renderContent();
   try{
     const today=new Date().toISOString().split('T')[0];
-    sajuData=await callClaude(SAJU_SYS,`생년월일:${sajuBirth}, 생시:${sajuTime||'미입력'}, 오늘:${today}, 종목:${S.tickers.join(',')}. JSON만 반환.`,false);
+    sajuData=await callClaude(SAJU_SYS,`생년월일:${sajuBirth}, 생시:${sajuTime||'미입력'}, 오늘:${today}, 종목:${S.tickers.join(',')}. JSON만.`,false);
     sajuStep='result';
+    try { localStorage.setItem(sajuKey, JSON.stringify({data:sajuData,savedAt:Date.now()})); } catch(e){}
   }catch(e){sajuError=e.message;}
   sajuLoading=false;renderContent();
 }
@@ -424,14 +516,29 @@ function renderSaju(){
 }
 
 // ── Settings
-let settingsInput=S.tickers.join(', '), apiKeyInput='';
+let settingsInput=S.tickers.join(', ');
 function renderSettings(){
+  const tokenPct = Math.min(100, (S.totalTokensUsed / 200000) * 100);
+  const tColor = tokenColor(S.totalTokensUsed);
   return `<div class="slide-up">
-    <div class="section-label">API 키</div>
+    <div class="section-label">토큰 사용량</div>
     <div class="card">
-      <div style="font-size:10px;color:#3d4a5c;margin-bottom:8px">현재 키: ${S.apiKey?'••••••••'+S.apiKey.slice(-6):'미입력'}</div>
-      <input class="settings-input" type="password" placeholder="새 키 입력 (sk-ant-...)" oninput="apiKeyInput=this.value"/>
-      <button class="btn-primary" style="margin-bottom:0" onclick="updateApiKey()">키 업데이트</button>
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:10px;color:#3d4a5c">이번 세션 누적</span>
+        <span style="font-size:11px;font-weight:700;color:${tColor}">${S.totalTokensUsed.toLocaleString()} tokens</span>
+      </div>
+      <div class="token-bar-wrap" style="padding:0;border:none;background:none">
+        <div class="token-bar-track"><div class="token-bar-fill" style="width:${tokenPct}%;background:${tColor}"></div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px">
+        <span style="font-size:9px;color:#3d4a5c">캐시 덕에 절약됨 ◉</span>
+        <button class="btn-sm" onclick="S.totalTokensUsed=0;localStorage.setItem('signal_am_tokens','0');renderContent()">초기화</button>
+      </div>
+    </div>
+    <div class="section-label">캐시 관리</div>
+    <div class="card">
+      <div style="font-size:11px;color:#7a8ba0;line-height:1.8;margin-bottom:12px">브리핑·어닝은 <span style="color:#e8c84a">3시간</span>, 사주는 <span style="color:#a78bfa">24시간</span> 캐시 유지.<br/>같은 날 반복 호출을 막아 크레딧을 아껴줘.</div>
+      <button class="btn-ghost" style="margin-bottom:6px" onclick="clearCache('briefing');clearCache('earnings');S.briefingData=null;earningsData=null;renderContent()">모든 캐시 삭제</button>
     </div>
     <div class="section-label">관심 종목</div>
     <div class="card">
@@ -441,33 +548,32 @@ function renderSettings(){
     </div>
     <div class="section-label">앱 정보</div>
     <div class="card">
-      <div class="info-row"><span style="font-size:11px;color:#3d4a5c">버전</span><span style="font-size:11px;font-family:'JetBrains Mono',monospace">SIGNAL AM v1.0</span></div>
+      <div class="info-row"><span style="font-size:11px;color:#3d4a5c">버전</span><span style="font-size:11px;font-family:'JetBrains Mono',monospace">SIGNAL AM v1.1</span></div>
       <div class="info-row"><span style="font-size:11px;color:#3d4a5c">데이터</span><span style="font-size:11px">Claude AI + 웹검색</span></div>
       <div class="info-row" style="margin:0"><span style="font-size:11px;color:#3d4a5c">면책</span><span style="font-size:11px;color:#f96b6b">투자 참고용</span></div>
     </div>
   </div>`;
 }
-function updateApiKey(){
-  if(!apiKeyInput.startsWith('sk-')){alert('올바른 키 형식이 아니야 (sk-ant-... 형식)');return;}
-  S.apiKey=apiKeyInput; localStorage.setItem('signal_am_key',apiKeyInput);
-  alert('키 업데이트 완료!'); renderContent();
-}
 function applySettings(){
   S.tickers=settingsInput.split(/[,\s]+/).filter(Boolean);
+  clearCache('briefing'); clearCache('earnings');
   S.briefingData=null; earningsData=null;
-  renderNav(); loadBriefing();
+  renderNav(); loadBriefing(true);
 }
 
 // ── Main render
 function renderContent(){
   const el=document.getElementById('content');
-  if(!S.apiKey){ el.innerHTML=renderSetup(); return; }
   const map={briefing:renderBriefing,earnings:renderEarnings,watchlist:renderWatchlist,saju:renderSaju,settings:renderSettings};
   el.innerHTML=(map[S.tab]||renderBriefing)();
 }
 
-// ── Init
-renderNav(); renderContent();
+// ── Init (캐시 로드 시도)
+(function init(){
+  const cached = loadCache('briefing');
+  if (cached) { S.briefingData=cached.data; S.briefingCachedAt=cached.savedAt; }
+  renderNav(); renderContent();
+})();
 </script>
 </body>
 </html>
