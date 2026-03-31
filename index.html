@@ -182,7 +182,7 @@ function formatAge(ms) {
 async function callClaude(system, user, useSearch=true) {
   const body = {
     model: 'claude-sonnet-4-20250514',
-    max_tokens: 1200,
+    max_tokens: 2500,
     system,
     messages: [{role:'user',content:user}],
   };
