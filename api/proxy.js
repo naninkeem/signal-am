@@ -8,7 +8,6 @@ export default async function handler(req, res) {
   try {
     // 웹서치 제거 (Tier 1 토큰 한도 초과 방지)
     const body = { ...req.body };
-    delete body.tools;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
