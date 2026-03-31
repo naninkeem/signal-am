@@ -6,13 +6,9 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    // 웹서치 최대 2회 제한 (토큰 절감)
+    // 웹서치 제거 (Tier 1 토큰 한도 초과 방지)
     const body = { ...req.body };
-    if (body.tools) {
-      body.tools = body.tools.map(t =>
-        t.name === 'web_search' ? { ...t, max_uses: 2 } : t
-      );
-    }
+    delete body.tools;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
